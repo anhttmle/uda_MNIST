@@ -1,0 +1,5 @@
+import metrics.distribution as distribution
+
+
+kl_divergence_with_logits = distribution.kl_divergence_with_logits
+entropy_with_logits = distribution.entropy_with_logits
