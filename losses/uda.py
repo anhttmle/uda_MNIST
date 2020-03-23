@@ -25,7 +25,7 @@ def compute_sup_loss(
         start_threshold = 1. / n_classes
         end_threshold = 1.
         current_threshold = tsa_threshold(
-            schedule=TSA_Schedule.LINEAR,
+            schedule=TSA_Schedule.LOG,
             current_step=current_step,
             total_steps=total_steps,
             start_threshold=start_threshold,

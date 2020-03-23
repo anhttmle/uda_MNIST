@@ -3,21 +3,21 @@ import tensorflow.keras as keras
 
 from generator.image import UnSupDataGenerator, SupDataGenerator
 from losses.uda import compute_uda_loss
-import models as models
 
 import sys
 
 
 def get_data():
     train_set, test_set = keras.datasets.mnist.load_data()
+    print(len(set(train_set[1][:100])))
 
     train_unsup_gen = UnSupDataGenerator(
-        images=train_set[0],
+        images=train_set[0][100:],
     )
 
     train_sup_gen = SupDataGenerator(
-        images=train_set[0][:1000],
-        labels=train_set[1][:1000],
+        images=train_set[0][:100],
+        labels=train_set[1][:100],
     )
 
     test_gen = SupDataGenerator(
@@ -28,14 +28,40 @@ def get_data():
     return (train_sup_gen, train_unsup_gen), test_gen
 
 
-def train_with_uda(
-        n_step=10,
-):
-    model = models.get_baselimodel()
-    optimizer = tf.optimizers.Adam()
+def build_model():
+    x = keras.layers.Input(shape=(28, 28, 1))
+    mid = keras.layers.Conv2D(filters=32, kernel_size=(3, 3))(x)
+    mid = keras.layers.Conv2D(filters=32, kernel_size=(3, 3))(mid)
+    mid = keras.layers.BatchNormalization()(mid)
+    mid = keras.layers.Activation(activation="relu")(mid)
+    mid = keras.layers.MaxPool2D()(mid)
+    mid = keras.layers.Conv2D(filters=64, kernel_size=(3, 3))(mid)
+    mid = keras.layers.Conv2D(filters=64, kernel_size=(3, 3))(mid)
+    mid = keras.layers.BatchNormalization()(mid)
+    mid = keras.layers.Activation(activation="relu")(mid)
+    mid = keras.layers.MaxPool2D()(mid)
+    mid = keras.layers.Flatten()(mid)
+    y_logit = keras.layers.Dense(10, name='logit')(mid)
 
-    train_gen, test_gen = get_data()
-    train_sup_gen, train_unsup_gen = train_gen
+    return keras.models.Model(
+        inputs=x,
+        outputs=y_logit
+    )
+
+
+def train(
+        model,
+        train_sup_gen,
+        train_unsup_gen,
+        test_sup_gen,
+        n_step=10000,
+):
+    optimizer = tf.optimizers.Adam()
+    model.compile(
+        optimizer=optimizer,
+        loss=keras.losses.sparse_categorical_crossentropy,
+        metrics=["acc"]
+    )
 
     for step in range(n_step):
         sup_images, sup_labels = train_sup_gen[step % len(train_sup_gen)]
@@ -65,35 +91,19 @@ def train_with_uda(
             loss.numpy())
         )
 
-        if step % 200 == 1:
+        if step % 200 == 0:
             print()
-            evaluate(
-                model=model,
-                dataset=test_gen
-            )
+            evaluate(model=model, dataset=test_sup_gen)
+            print()
+            # model.evaluate(test_sup_gen)
 
-
-def train():
-    model = models.get_baseline_model()
-    prob = keras.layers.Activation(activation="softmax")(model.outputs[0])
-    model = keras.models.Model(inputs=model.inputs, outputs=prob)
-    optimizer = keras.optimizers.Adam()
-    model.compile(optimizer=optimizer, loss=keras.losses.SparseCategoricalCrossentropy())
-
-    train_gen, test_gen = get_data()
-    train_sup_gen, train_unsup_gen = train_gen
-    model.fit(train_sup_gen, epochs=100)
-    evaluate(
-        model=model,
-        dataset=test_gen
-    )
+    return model
 
 
 def evaluate(
         model,
-        dataset,
+        dataset
 ):
-    print()
     acc_fn = keras.metrics.SparseCategoricalAccuracy()
     acc_fn.reset_states()
 
@@ -102,10 +112,20 @@ def evaluate(
         acc = acc_fn(sup_labels, tf.nn.softmax(model(sup_images), axis=-1))
         sys.stdout.write("\rACC: {} = {}/{}".format(acc.numpy(), acc_fn.total.numpy(), acc_fn.count.numpy()))
 
-    print()
-
-
 
 if __name__ == "__main__":
-    train_with_uda()
-    # train()
+    train_gen, test_gen = get_data()
+    train_sup_gen, train_unsup_gen = train_gen
+
+    model = build_model()
+
+    model = train(
+        model=model,
+        train_sup_gen=train_sup_gen,
+        train_unsup_gen=train_unsup_gen,
+        test_sup_gen=test_gen,
+        n_step=10000,
+    )
+
+
+
