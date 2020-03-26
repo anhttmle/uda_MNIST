@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 
 
 def get_deep_fashion_annotations(data_folder_path='D:\workspace\common\Data Set\Category and attribute prediction\Category and Attribute Prediction Benchmark'):
@@ -98,3 +99,19 @@ def get_deep_fashion_annotations_by_category_type(data_folder_path='D:\workspace
         ]
 
         return train_set, dev_set, test_set
+
+
+def get_mnist_dataset():
+    (train_X, train_Y), (test_X, test_Y) = tf.keras.datasets.mnist.load_data()
+    train_set = tf.data.Dataset.from_tensor_slices(tensors=(train_X, train_Y))
+    train_set = train_set.batch(32)
+    train_set = train_set.map(lambda x, y: (x/255., y))
+
+    test_set = tf.data.Dataset.from_tensor_slices(tensors=(test_X, test_Y))
+
+    return train_set, test_set
+
+train_set, test_set = get_mnist_dataset()
+for item in train_set:
+    item_X, item_Y = item
+    print(item_X.shape, item_Y.shape)
