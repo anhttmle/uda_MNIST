@@ -7,21 +7,20 @@ from data import normalize
 from augmentation.transform import DERandAugment
 
 
-class SupDataGenerator(keras.utils.Sequence):
+class MNISTSupDataGenerator(keras.utils.Sequence):
     def __init__(
             self,
             images,
             labels,
-            batch_size: int = 16,
             target_size=(28, 28),
             n_channel=1,
     ):
-        assert len(images)==len(labels), "Number of image must equal number of label"
+        assert len(images) == len(labels), "Number of image must equal number of label"
         self.images = images
         self.labels = labels
-        self.batch_size = batch_size
         self.target_size = target_size
         self.n_channel = n_channel
+        self.batch_size = 1
         return
 
     def __len__(self):
@@ -50,6 +49,13 @@ class SupDataGenerator(keras.utils.Sequence):
             batch_images[i] = image.astype(np.float)
             batch_label[i] = batch[1][i]
 
+        if self.batch_size == 1:
+            batch_images = np.reshape(
+                batch_images,
+                newshape=(batch_images.shape[1], batch_images.shape[2], batch_images.shape[3])
+            )
+            batch_label = np.reshape(batch_label, newshape=())
+
         return batch_images, batch_label
 
     def on_epoch_end(self):
@@ -57,18 +63,17 @@ class SupDataGenerator(keras.utils.Sequence):
         return
 
 
-class UnSupDataGenerator(keras.utils.Sequence):
+class MNISTUnSupDataGenerator(keras.utils.Sequence):
     def __init__(
             self,
             images,
-            batch_size: int = 32,
             target_size=(28, 28),
             n_channel=1,
             n_apply_transform=5,
             magnitude=3,
     ):
         self.images = images
-        self.batch_size = batch_size
+        self.batch_size = 1
         self.target_size = target_size
         self.n_channel = n_channel
         self.augmenter = DERandAugment(
@@ -101,6 +106,17 @@ class UnSupDataGenerator(keras.utils.Sequence):
 
             batch_images[i] = np.expand_dims(image, axis=-1).astype(np.float)
             batch_images_aug[i] = image_aug.astype(np.float)
+
+        if self.batch_size == 1:
+            batch_images = np.reshape(
+                batch_images,
+                newshape=(batch_images.shape[1], batch_images.shape[2], batch_images.shape[3])
+            )
+
+            batch_images_aug = np.reshape(
+                batch_images_aug,
+                newshape=(batch_images_aug.shape[1], batch_images_aug.shape[2], batch_images_aug.shape[3])
+            )
 
         return batch_images, batch_images_aug
 

@@ -19,6 +19,8 @@ def compute_sup_loss(
         from_logits=True
     )
 
+    # tf.print("Sup Loss: {}".format(sup_labels))
+
     avg_sup_loss = tf.reduce_mean(sup_loss)
 
     if tsa:
@@ -29,7 +31,8 @@ def compute_sup_loss(
             current_step=current_step,
             total_steps=total_steps,
             start_threshold=start_threshold,
-            end_threshold=end_threshold
+            end_threshold=end_threshold,
+            scale=tf.constant(5, dtype=tf.float32)
         )
 
         one_hot_sup_labels = tf.one_hot(
@@ -165,6 +168,7 @@ def compute_uda_loss(
         augment_coeff=1,
         entropy_coeff=0
 ):
+
     return compute_total_loss(
         sup_labels=sup_labels,
         sup_logits=model(sup_images),

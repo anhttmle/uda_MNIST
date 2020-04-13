@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 
-from generator.image import UnSupDataGenerator, SupDataGenerator
+from generator.image import MNISTUnSupDataGenerator, MNISTSupDataGenerator
 from losses.uda import compute_uda_loss
 
 import sys
@@ -11,16 +11,16 @@ def get_data():
     train_set, test_set = keras.datasets.mnist.load_data()
     print(len(set(train_set[1][:100])))
 
-    train_unsup_gen = UnSupDataGenerator(
+    train_unsup_gen = MNISTUnSupDataGenerator(
         images=train_set[0][100:],
     )
 
-    train_sup_gen = SupDataGenerator(
+    train_sup_gen = MNISTSupDataGenerator(
         images=train_set[0][:100],
         labels=train_set[1][:100],
     )
 
-    test_gen = SupDataGenerator(
+    test_gen = MNISTSupDataGenerator(
         images=test_set[0],
         labels=test_set[1]
     )

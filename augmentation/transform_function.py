@@ -175,3 +175,16 @@ def autocontrast(image, magnitude, sign=None):
 def invert(image, magnitude, sign=None):
     new_image = ImageOps.invert(image)
     return new_image
+
+
+class DETransform:
+    def __init__(
+            self,
+            transform_func,
+            transform_range
+    ):
+        self.name = transform_func.__name__
+        self.transform_func = transform_func
+        self.transform_range = transform_range
+        return
+

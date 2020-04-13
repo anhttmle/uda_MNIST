@@ -1,31 +1,30 @@
 import numpy as np
-from PIL import Image
-
-import utils.visualize as visualizer
 import augmentation.transform_function as transform_func
+from augmentation.transform_function import DETransform
 
 
 class AugmentName:
-    IDENTITY = transform_func.identity.__name__
-    TRANSLATE_X = transform_func.translate_x.__name__
-    TRANSLATE_Y = transform_func.translate_y.__name__
-    SCALE_WIDTH = transform_func.scale_width.__name__
-    SCALE_HEIGHT = transform_func.scale_height.__name__
-    ROTATE = transform_func.rotate.__name__
-    SHEAR_X = transform_func.shear_x.__name__
-    SHEAR_Y = transform_func.shear_y.__name__
-    COLOR = transform_func.color.__name__
-    POSTERIZE = transform_func.posterize.__name__
-    SOLARIZE = transform_func.solarize.__name__
-    CONTRAST = transform_func.contrast.__name__
-    SHARPNESS = transform_func.sharpness.__name__
-    BRIGHTNESS = transform_func.brightness.__name__
-    AUTOCONSTRAST = transform_func.autocontrast.__name__
-    INVERT = transform_func.invert.__name__
 
-    @staticmethod
-    def get_names():
-        return [
+    IDENTITY = DETransform(transform_func=transform_func.identity, transform_range=np.linspace(0, 0, 10))
+    TRANSLATE_X = DETransform(transform_func=transform_func.translate_x, transform_range=np.linspace(0, 0.2, 10))
+    TRANSLATE_Y = DETransform(transform_func=transform_func.translate_y, transform_range=np.linspace(0, 0.2, 10))
+    SCALE_WIDTH = DETransform(transform_func=transform_func.scale_width, transform_range=np.linspace(0, 0.1, 10))
+    SCALE_HEIGHT = DETransform(transform_func=transform_func.scale_height, transform_range=np.linspace(0, 0.1, 10))
+    ROTATE = DETransform(transform_func=transform_func.rotate, transform_range=np.linspace(0, 60, 10))
+    SHEAR_X = DETransform(transform_func=transform_func.shear_x, transform_range=np.linspace(0, 0.3, 10))
+    SHEAR_Y = DETransform(transform_func=transform_func.shear_y, transform_range=np.linspace(0, 0.3, 10))
+    COLOR = DETransform(transform_func=transform_func.color, transform_range=np.linspace(0.0, 0.9, 10))
+    POSTERIZE = DETransform(transform_func=transform_func.posterize, transform_range=np.round(np.linspace(8, 4, 10), 0).astype(np.int))
+    SOLARIZE = DETransform(transform_func=transform_func.solarize, transform_range=np.linspace(256, 231, 10))
+    CONTRAST = DETransform(transform_func=transform_func.contrast, transform_range=np.linspace(0.0, 0.5, 10))
+    SHARPNESS = DETransform(transform_func=transform_func.sharpness, transform_range=np.linspace(0.0, 0.9, 10))
+    BRIGHTNESS = DETransform(transform_func=transform_func.brightness, transform_range=np.linspace(0.0, 0.3, 10))
+    AUTOCONSTRAST = DETransform(transform_func=transform_func.autocontrast, transform_range=np.linspace(0, 0, 10))
+    INVERT = DETransform(transform_func=transform_func.invert, transform_range=np.linspace(0, 0, 10))
+
+
+class DERandAugment:
+    TRANSFORMS = [
             AugmentName.IDENTITY,
             AugmentName.TRANSLATE_X,
             AugmentName.TRANSLATE_Y,
@@ -42,30 +41,7 @@ class AugmentName:
             AugmentName.BRIGHTNESS,
             AugmentName.AUTOCONSTRAST,
             AugmentName.INVERT,
-        ]
-
-
-class DERandAugment:
-    TRANSFORMS = {name: getattr(transform_func, name) for name in AugmentName.get_names()}
-
-    RANGES = {
-        AugmentName.IDENTITY: np.linspace(0, 0, 10),
-        AugmentName.TRANSLATE_X: np.linspace(0, 0.2, 10),
-        AugmentName.TRANSLATE_Y: np.linspace(0, 0.2, 10),
-        AugmentName.SCALE_WIDTH: np.linspace(0, 0.1, 10),
-        AugmentName.SCALE_HEIGHT: np.linspace(0, 0.1, 10),
-        AugmentName.ROTATE: np.linspace(0, 60, 10),
-        AugmentName.SHEAR_X: np.linspace(0, 0.3, 10),
-        AugmentName.SHEAR_Y: np.linspace(0, 0.3, 10),
-        AugmentName.COLOR: np.linspace(0.0, 0.9, 10),
-        AugmentName.POSTERIZE: np.round(np.linspace(8, 4, 10), 0).astype(np.int),
-        AugmentName.SOLARIZE: np.linspace(256, 231, 10),
-        AugmentName.CONTRAST: np.linspace(0.0, 0.5, 10),
-        AugmentName.SHARPNESS: np.linspace(0.0, 0.9, 10),
-        AugmentName.BRIGHTNESS: np.linspace(0.0, 0.3, 10),
-        AugmentName.AUTOCONSTRAST: np.linspace(0, 0, 10),
-        AugmentName.INVERT: np.linspace(0, 0, 10),
-    }
+    ]
 
     def __init__(self, n_apply_transform=5, magnitude=6):
         self.n_apply_transform = n_apply_transform
@@ -73,11 +49,15 @@ class DERandAugment:
 
         return
 
-    def __call__(self, images, annotations=[]):
+    def __call__(self, images, annotations=None):
+        if annotations is None:
+            annotations = []
+
         assert len(images) == len(annotations) or len(annotations) == 0, "Number of anotation must be zero or equal to number of image"
 
         result = []
         for i in range(len(images)):
+            annotation = None
             if len(annotations) > 0:
                 annotation = annotations[i]
 
@@ -91,8 +71,8 @@ class DERandAugment:
         return result
 
     def transform(self, image, annotations=None):
-        ops = np.random.choice(list(DERandAugment.TRANSFORMS.values()), self.n_apply_transform)
-        ops = [ops[i](image, DERandAugment.RANGES[ops[i].__name__][np.random.randint(low=0, high=self.magnitude)]) for i in range(0, len(ops))]
+        ops = np.random.choice(DERandAugment.TRANSFORMS, self.n_apply_transform)
+        ops = [ops[i].transform_func(image, ops[i].transform_range[np.random.randint(low=0, high=self.magnitude)]) for i in range(len(ops))]
 
         for i in range(len(ops)):
             image, annotations = ops[i](image, annotations)

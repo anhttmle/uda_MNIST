@@ -1,45 +1,32 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 
-from generator.image import UnSupDataGenerator, SupDataGenerator
 from losses.uda import compute_uda_loss
 import models as models
+import data.dataset as dataset
+
 
 import sys
 
 
 def get_data():
-    train_set, test_set = keras.datasets.mnist.load_data()
-
-    train_unsup_gen = UnSupDataGenerator(
-        images=train_set[0],
-    )
-
-    train_sup_gen = SupDataGenerator(
-        images=train_set[0][:1000],
-        labels=train_set[1][:1000],
-    )
-
-    test_gen = SupDataGenerator(
-        images=test_set[0],
-        labels=test_set[1]
-    )
-
-    return (train_sup_gen, train_unsup_gen), test_gen
+    return dataset.build_mnist_dataset(n_sup=1000)
 
 
+@tf.function
 def train_with_uda(
-        n_step=10,
+        train_sup_dataset,
+        train_unsup_dataset,
+        model,
+        optimizer,
+        n_step,
 ):
-    model = models.get_baselimodel()
-    optimizer = tf.optimizers.Adam()
+    get_unsup_data = iter(train_unsup_dataset)
+    get_sup_data = iter(train_sup_dataset)
 
-    train_gen, test_gen = get_data()
-    train_sup_gen, train_unsup_gen = train_gen
-
-    for step in range(n_step):
-        sup_images, sup_labels = train_sup_gen[step % len(train_sup_gen)]
-        unsup_images, unsup_images_aug = train_unsup_gen[step % len(train_unsup_gen)]
+    for step in tf.range(n_step):
+        sup_images, sup_labels = next(get_sup_data)
+        unsup_images, unsup_images_aug = next(get_unsup_data)
 
         with tf.GradientTape() as tape:
             loss = compute_uda_loss(
@@ -60,52 +47,37 @@ def train_with_uda(
 
         optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        sys.stdout.write("\rStep: {},         Loss: {}".format(
-            optimizer.iterations.numpy(),
-            loss.numpy())
+        tf.print(
+            "Step: ", step + 1, ", Loss: ", loss,
+            output_stream=sys.stdout
         )
 
-        if step % 200 == 1:
-            print()
-            evaluate(
-                model=model,
-                dataset=test_gen
-            )
 
-
-def train():
-    model = models.get_baseline_model()
-    prob = keras.layers.Activation(activation="softmax")(model.outputs[0])
-    model = keras.models.Model(inputs=model.inputs, outputs=prob)
-    optimizer = keras.optimizers.Adam()
-    model.compile(optimizer=optimizer, loss=keras.losses.SparseCategoricalCrossentropy())
-
-    train_gen, test_gen = get_data()
-    train_sup_gen, train_unsup_gen = train_gen
-    model.fit(train_sup_gen, epochs=100)
-    evaluate(
-        model=model,
-        dataset=test_gen
-    )
-
-
+@tf.function
 def evaluate(
         model,
-        dataset,
+        eval_ds,
+        metric_fn,
 ):
-    print()
-    acc_fn = keras.metrics.SparseCategoricalAccuracy()
-    acc_fn.reset_states()
-
-    for i in range(len(dataset)):
-        sup_images, sup_labels = dataset[i]
-        acc = acc_fn(sup_labels, tf.nn.softmax(model(sup_images), axis=-1))
-        sys.stdout.write("\rACC: {} = {}/{}".format(acc.numpy(), acc_fn.total.numpy(), acc_fn.count.numpy()))
-
-    print()
-
+    metric_fn.reset_states()
+    for sup_images, sup_labels in eval_ds:
+        metric_fn(sup_labels, model(sup_images))
 
 
 if __name__ == "__main__":
-    train_with_uda()
-    # train()
+    train_sup_ds, train_unsup_ds, test_sup_ds = get_data()
+
+    baseline_model = models.get_baseline_model()
+    opt = tf.optimizers.Adam()
+
+    train_with_uda(
+        train_sup_dataset=train_sup_ds,
+        train_unsup_dataset=train_unsup_ds,
+        model=baseline_model,
+        optimizer=opt,
+        n_step=tf.constant(1000)
+    )
+
+    acc_fn = keras.metrics.SparseCategoricalAccuracy()
+
+    print("ACC: {}".format(acc_fn.result()))
