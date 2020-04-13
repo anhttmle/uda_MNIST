@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 
-from losses.uda import compute_uda_loss
+from losses.uda import compute_uda_loss, compute_sup_loss
 import models as models
 import data.dataset as dataset
 
@@ -47,10 +47,43 @@ def train_with_uda(
 
         optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        tf.print(
-            "Step: ", step + 1, ", Loss: ", loss,
-            output_stream=sys.stdout
+        if step % 1000 == 0:
+            tf.print(
+                "Step: ", step + 1, ", Loss: ", loss,
+                output_stream=sys.stdout
+            )
+
+
+@tf.function
+def train(
+    train_sup_dataset,
+    model,
+    optimizer,
+    n_step,
+):
+    get_sup_data = iter(train_sup_dataset)
+
+    for step in tf.range(n_step):
+        sup_images, sup_labels = next(get_sup_data)
+        sup_logits = model(sup_images)
+        with tf.GradientTape() as tape:
+            loss = tf.losses.sparse_categorical_crossentropy(
+                y_true=sup_labels,
+                y_pred=sup_logits,
+                from_logits=True
+            )
+
+        grads = tape.gradient(
+            loss, model.trainable_variables
         )
+
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+        if step % 1000 == 0:
+            tf.print(
+                "Step: ", step + 1, ", Loss: ", loss,
+                output_stream=sys.stdout
+            )
 
 
 @tf.function
@@ -75,9 +108,23 @@ if __name__ == "__main__":
         train_unsup_dataset=train_unsup_ds,
         model=baseline_model,
         optimizer=opt,
-        n_step=tf.constant(1000)
+        n_step=tf.constant(10000)
     )
+
+    # train(
+    #     train_sup_dataset=train_sup_ds,
+    #     model=baseline_model,
+    #     optimizer=opt,
+    #     n_step=tf.constant(10000)
+    # )
 
     acc_fn = keras.metrics.SparseCategoricalAccuracy()
 
+    evaluate(
+        model=baseline_model,
+        eval_ds=test_sup_ds,
+        metric_fn=acc_fn
+    )
+
     print("ACC: {}".format(acc_fn.result()))
+

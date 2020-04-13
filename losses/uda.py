@@ -19,8 +19,6 @@ def compute_sup_loss(
         from_logits=True
     )
 
-    # tf.print("Sup Loss: {}".format(sup_labels))
-
     avg_sup_loss = tf.reduce_mean(sup_loss)
 
     if tsa:
