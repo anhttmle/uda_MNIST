@@ -10,7 +10,7 @@ import sys
 
 
 def get_data():
-    return dataset.build_mnist_dataset(n_sup=1000)
+    return dataset.build_cifar10_dataset(n_sup=1000)
 
 
 @tf.function
@@ -100,16 +100,20 @@ def evaluate(
 if __name__ == "__main__":
     train_sup_ds, train_unsup_ds, test_sup_ds = get_data()
 
-    baseline_model = models.get_baseline_model()
+    baseline_model = models.get_baseline_model(n_channel=3)
     opt = tf.optimizers.Adam()
+
+    # writer = tf.summary.create_file_writer(logdir="logs/func/temp")
 
     train_with_uda(
         train_sup_dataset=train_sup_ds,
         train_unsup_dataset=train_unsup_ds,
         model=baseline_model,
         optimizer=opt,
-        n_step=tf.constant(10000)
+        n_step=tf.constant(10, name="n_step")
     )
+
+
 
     # train(
     #     train_sup_dataset=train_sup_ds,
@@ -119,12 +123,18 @@ if __name__ == "__main__":
     # )
 
     acc_fn = keras.metrics.SparseCategoricalAccuracy()
-
+    # tf.summary.trace_on(graph=True, profiler=False)
     evaluate(
         model=baseline_model,
         eval_ds=test_sup_ds,
         metric_fn=acc_fn
     )
+    # with writer.as_default():
+    #     tf.summary.trace_export(
+    #         name="my_func_trace",
+    #         step=0,
+    #         # profiler_outdir=log
+    #     )
 
     print("ACC: {}".format(acc_fn.result()))
 
