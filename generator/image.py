@@ -211,14 +211,13 @@ class CIFAR10UnSupDataGenerator(keras.utils.Sequence):
 
         for i in range(n_data):
             image = images[i]
-            image_aug = Image.fromarray(image_aug)
+            image_aug = Image.fromarray(image)
 
             image_aug, annotations = normalize.resize(image=image_aug, annotations=[], target_size=self.target_size)
             image_aug, annotations = self.augmenter.transform(image=image_aug, annotations=None)
 
             image_aug, annotations = normalize.scale_to_unit(image=image_aug, annotations=[])
 
-            batch_images[i] = np.expand_dims(image, axis=-1).astype(np.float)
             batch_images_aug[i] = image_aug.astype(np.float)
 
         if self.batch_size == 1:

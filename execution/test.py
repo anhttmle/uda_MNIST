@@ -65,12 +65,15 @@ def train(
 
     for step in tf.range(n_step):
         sup_images, sup_labels = next(get_sup_data)
-        sup_logits = model(sup_images)
+
         with tf.GradientTape() as tape:
-            loss = tf.losses.sparse_categorical_crossentropy(
-                y_true=sup_labels,
-                y_pred=sup_logits,
-                from_logits=True
+            sup_logits = model(sup_images)
+            loss = tf.reduce_mean(
+                tf.losses.sparse_categorical_crossentropy(
+                    y_true=sup_labels,
+                    y_pred=sup_logits,
+                    from_logits=True
+                )
             )
 
         grads = tape.gradient(
@@ -100,7 +103,7 @@ def evaluate(
 if __name__ == "__main__":
     train_sup_ds, train_unsup_ds, test_sup_ds = get_data()
 
-    baseline_model = models.get_baseline_model(n_channel=3)
+    baseline_model = models.get_baseline_model(width=32, height=32, n_channel=3)
     opt = tf.optimizers.Adam()
 
     # writer = tf.summary.create_file_writer(logdir="logs/func/temp")
@@ -110,7 +113,7 @@ if __name__ == "__main__":
         train_unsup_dataset=train_unsup_ds,
         model=baseline_model,
         optimizer=opt,
-        n_step=tf.constant(10, name="n_step")
+        n_step=tf.constant(100000, name="n_step")
     )
 
 

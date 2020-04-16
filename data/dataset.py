@@ -100,4 +100,18 @@ def build_cifar10_dataset(n_sup=1000):
 
     return train_sup_dataset, train_unsup_dataset, test_sup_dataset
 
+# train_sup_dataset, train_unsup_dataset, test_sup_dataset = build_cifar10_dataset()
+# for i in train_sup_dataset:
+#     print(i[0].shape)
+#     break
+#
+# for i in train_unsup_dataset:
+#     print(i[0].shape)
+#     break
+#
+# for i in test_sup_dataset:
+#     print(i[0].shape)
+#     break
+
+
 
